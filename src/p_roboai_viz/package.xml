@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>p_roboai_viz</name>
+  <version>0.1.0</version>
+  <description>P_RoboAI RViz-like Qt visualizer — 2D map + 3D MuJoCo viewport + displays panel.</description>
+  <maintainer email="user@example.com">P RoboAI</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_index_cpp</buildtool_depend>
+
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>tf2_msgs</depend>
+
+  <!-- Qt and OpenGL pulled in via cmake find_package; listed here for rosdep -->
+  <build_depend>libqt6-dev</build_depend>
+
+  <!-- Runtime: the warehouse model lives here -->
+  <exec_depend>robot_amr_mujoco_sim</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

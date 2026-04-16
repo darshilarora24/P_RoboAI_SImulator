@@ -1,0 +1,153 @@
+<?xml version="1.0"?>
+<robot name="robot_arm_mujoco_sim">
+  <material name="base_gray">
+    <color rgba="0.20 0.24 0.28 1.0"/>
+  </material>
+  <material name="link_blue">
+    <color rgba="0.18 0.51 0.79 1.0"/>
+  </material>
+  <material name="joint_orange">
+    <color rgba="0.90 0.47 0.19 1.0"/>
+  </material>
+  <material name="tool_red">
+    <color rgba="0.90 0.20 0.20 1.0"/>
+  </material>
+
+  <link name="world"/>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <cylinder radius="0.11" length="0.16"/>
+      </geometry>
+      <material name="base_gray"/>
+    </visual>
+    <collision>
+      <geometry>
+        <cylinder radius="0.11" length="0.16"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="world_to_base" type="fixed">
+    <parent link="world"/>
+    <child link="base_link"/>
+    <origin xyz="0 0 0.08" rpy="0 0 0"/>
+  </joint>
+
+  <link name="shoulder_yaw_link">
+    <visual>
+      <origin xyz="0 0 0.14" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.055" length="0.28"/>
+      </geometry>
+      <material name="joint_orange"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.14" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.055" length="0.28"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="shoulder_yaw" type="revolute">
+    <parent link="base_link"/>
+    <child link="shoulder_yaw_link"/>
+    <origin xyz="0 0 0.08" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-3.14159" upper="3.14159" effort="80.0" velocity="2.0"/>
+  </joint>
+
+  <link name="upper_arm_link">
+    <visual>
+      <origin xyz="0 0 0.16" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.045" length="0.32"/>
+      </geometry>
+      <material name="link_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.16" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.045" length="0.32"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="shoulder_pitch" type="revolute">
+    <parent link="shoulder_yaw_link"/>
+    <child link="upper_arm_link"/>
+    <origin xyz="0 0 0.28" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.8" upper="1.8" effort="80.0" velocity="2.0"/>
+  </joint>
+
+  <link name="forearm_link">
+    <visual>
+      <origin xyz="0 0 0.13" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.035" length="0.26"/>
+      </geometry>
+      <material name="link_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.13" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.035" length="0.26"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="elbow_pitch" type="revolute">
+    <parent link="upper_arm_link"/>
+    <child link="forearm_link"/>
+    <origin xyz="0 0 0.32" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-2.2" upper="2.2" effort="80.0" velocity="2.0"/>
+  </joint>
+
+  <link name="wrist_link">
+    <visual>
+      <origin xyz="0 0 0.09" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.028" length="0.18"/>
+      </geometry>
+      <material name="link_blue"/>
+    </visual>
+    <collision>
+      <origin xyz="0 0 0.09" rpy="0 0 0"/>
+      <geometry>
+        <cylinder radius="0.028" length="0.18"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="wrist_pitch" type="revolute">
+    <parent link="forearm_link"/>
+    <child link="wrist_link"/>
+    <origin xyz="0 0 0.26" rpy="0 0 0"/>
+    <axis xyz="0 1 0"/>
+    <limit lower="-1.8" upper="1.8" effort="60.0" velocity="2.5"/>
+  </joint>
+
+  <link name="tool0">
+    <visual>
+      <geometry>
+        <sphere radius="0.04"/>
+      </geometry>
+      <material name="tool_red"/>
+    </visual>
+    <collision>
+      <geometry>
+        <sphere radius="0.04"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="tool0_fixed" type="fixed">
+    <parent link="wrist_link"/>
+    <child link="tool0"/>
+    <origin xyz="0 0 0.18" rpy="0 0 0"/>
+  </joint>
+</robot>

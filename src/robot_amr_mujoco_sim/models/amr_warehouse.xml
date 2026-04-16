@@ -1,0 +1,160 @@
+<mujoco model="amr_warehouse">
+  <!--
+    AMR differential-drive robot in a 10 m × 10 m warehouse.
+
+    Geom groups
+    ───────────
+      0  world / static obstacles  → visible, collidable, hit by lidar rays
+      1  robot chassis / lidar     → visible, collidable, EXCLUDED from lidar
+      2  visual-only (no contact)  → visible, non-collidable, EXCLUDED from lidar
+  -->
+
+  <compiler angle="radian" autolimits="true"/>
+  <option timestep="0.004" gravity="0 0 -9.81" integrator="RK4"/>
+
+  <visual>
+    <headlight diffuse="0.85 0.85 0.85" ambient="0.3 0.3 0.3" specular="0.1 0.1 0.1"/>
+    <rgba haze="0.15 0.22 0.28 1"/>
+  </visual>
+
+  <asset>
+    <texture name="skybox" type="skybox" builtin="gradient"
+             rgb1="0.18 0.26 0.36" rgb2="0.90 0.94 1.0" width="512" height="3072"/>
+    <material name="floor_mat"   rgba="0.82 0.82 0.74 1" shininess="0.05"/>
+    <material name="wall_mat"    rgba="0.55 0.55 0.60 1"/>
+    <material name="box_mat"     rgba="0.45 0.56 0.42 1"/>
+    <material name="chassis_mat" rgba="0.18 0.40 0.78 1"/>
+    <material name="wheel_mat"   rgba="0.10 0.10 0.10 1"/>
+    <material name="caster_mat"  rgba="0.55 0.55 0.55 1"/>
+    <material name="lidar_mat"   rgba="0.05 0.05 0.05 1"/>
+  </asset>
+
+  <default>
+    <joint damping="0.3" armature="0.01"/>
+    <!-- Obstacle walls -->
+    <default class="wall">
+      <geom type="box" group="0" contype="1" conaffinity="1"
+            material="wall_mat" friction="0.8 0.02 0.01"/>
+    </default>
+    <!-- Robot drive wheels -->
+    <default class="wheel">
+      <geom type="cylinder" group="1" contype="1" conaffinity="1"
+            material="wheel_mat" friction="1.2 0.015 0.005" density="500"/>
+    </default>
+  </default>
+
+  <!-- ═══════════════════════ WORLD ═══════════════════════ -->
+  <worldbody>
+    <light name="sun" pos="5 5 8" dir="-0.2 0.2 -1" directional="true"
+           diffuse="0.9 0.9 0.9" specular="0.2 0.2 0.2" castshadow="true"/>
+
+    <!-- Floor  (10 m × 10 m, centred at 5, 5) -->
+    <geom name="floor" type="plane" pos="5 5 0" size="6 6 0.05"
+          material="floor_mat" group="0" contype="1" conaffinity="1"
+          friction="0.8 0.02 0.01"/>
+
+    <!-- ── Boundary walls ────────────────────────────────────
+         Each box: pos = centre, size = half-extents.
+         Wall height = 1.5 m → half-height = 0.75 m           -->
+
+    <!-- South (y=0..0.3) -->
+    <geom name="wall_S" class="wall" pos="5.0 0.15 0.75" size="5.0 0.15 0.75"/>
+    <!-- North (y=9.7..10.0) -->
+    <geom name="wall_N" class="wall" pos="5.0 9.85 0.75" size="5.0 0.15 0.75"/>
+    <!-- West  (x=0..0.3) -->
+    <geom name="wall_W" class="wall" pos="0.15 5.0 0.75" size="0.15 5.0 0.75"/>
+    <!-- East  (x=9.7..10.0) -->
+    <geom name="wall_E" class="wall" pos="9.85 5.0 0.75" size="0.15 5.0 0.75"/>
+
+    <!-- Interior wall A  (x=3.0..3.3, y=1.5..6.0) -->
+    <geom name="wall_A" class="wall" pos="3.15 3.75 0.75" size="0.15 2.25 0.75"/>
+    <!-- Interior wall B  (x=5.0..8.2, y=4.0..4.3) -->
+    <geom name="wall_B" class="wall" pos="6.60 4.15 0.75" size="1.60 0.15 0.75"/>
+
+    <!-- Box 1  (x=1.5..2.5, y=6.5..7.5) -->
+    <geom name="box_1" type="box" pos="2.0 7.0 0.75" size="0.5 0.5 0.75"
+          group="0" contype="1" conaffinity="1" material="box_mat"/>
+    <!-- Box 2  (x=7.0..8.0, y=1.0..2.0) -->
+    <geom name="box_2" type="box" pos="7.5 1.5 0.75" size="0.5 0.5 0.75"
+          group="0" contype="1" conaffinity="1" material="box_mat"/>
+    <!-- Box 3  (x=6.0..7.0, y=6.5..7.5) -->
+    <geom name="box_3" type="box" pos="6.5 7.0 0.75" size="0.5 0.5 0.75"
+          group="0" contype="1" conaffinity="1" material="box_mat"/>
+    <!-- Box 4  (x=4.5..5.5, y=1.5..2.5) -->
+    <geom name="box_4" type="box" pos="5.0 2.0 0.75" size="0.5 0.5 0.75"
+          group="0" contype="1" conaffinity="1" material="box_mat"/>
+
+    <!-- ══════════════════════ ROBOT ══════════════════════
+         Free body — starts at (1.0, 1.0).
+         Chassis centre placed 0.10 m above floor
+         (= wheel radius), so wheels rest on ground.          -->
+    <body name="amr_base" pos="1.0 1.0 0.10">
+      <freejoint name="root"/>
+
+      <!-- Chassis  0.55 × 0.45 × 0.18 m -->
+      <geom name="chassis" type="box" size="0.275 0.225 0.09"
+            group="1" contype="1" conaffinity="1"
+            material="chassis_mat" mass="12"/>
+
+      <!-- IMU / base reference site -->
+      <site name="imu_site" pos="0 0 0" size="0.015" rgba="1 1 0 0.5"/>
+
+      <!-- LiDAR mount site (rays cast from here) -->
+      <site name="lidar_site" pos="0 0 0.115" size="0.01" rgba="1 0 0 0.8"/>
+
+      <!-- LiDAR visual body (non-collidable, excluded from rays via group 2) -->
+      <geom name="lidar_vis" type="cylinder" size="0.05 0.025" pos="0 0 0.115"
+            group="2" contype="0" conaffinity="0" material="lidar_mat" mass="0.15"/>
+
+      <!-- ── Left drive wheel ──────────────────────────── -->
+      <body name="left_wheel" pos="0 0.25 0">
+        <joint name="left_wheel_joint" type="hinge" axis="0 1 0"
+               limited="false" damping="0.5" armature="0.02"/>
+        <!-- cylinder axis along Y via euler 90° around X -->
+        <geom name="left_wheel_geom" class="wheel"
+              size="0.10 0.025" euler="1.5708 0 0" mass="0.8"/>
+      </body>
+
+      <!-- ── Right drive wheel ─────────────────────────── -->
+      <body name="right_wheel" pos="0 -0.25 0">
+        <joint name="right_wheel_joint" type="hinge" axis="0 1 0"
+               limited="false" damping="0.5" armature="0.02"/>
+        <geom name="right_wheel_geom" class="wheel"
+              size="0.10 0.025" euler="1.5708 0 0" mass="0.8"/>
+      </body>
+
+      <!-- ── Rear caster (passive sphere) ─────────────── -->
+      <body name="caster" pos="-0.22 0 -0.06">
+        <joint name="caster_ball" type="ball" damping="0.05" limited="false"/>
+        <geom name="caster_geom" type="sphere" size="0.04"
+              group="1" contype="1" conaffinity="1"
+              material="caster_mat" mass="0.3"
+              friction="0.001 0.001 0.001"/>
+      </body>
+
+    </body><!-- /amr_base -->
+
+  </worldbody>
+
+  <!-- ═══════════════════ ACTUATORS ═══════════════════════
+       Velocity-controlled wheels: ctrl → target rad/s.
+       Wheel radius = 0.10 m → for 1 m/s: ctrl = 10 rad/s. -->
+  <actuator>
+    <velocity name="left_vel"  joint="left_wheel_joint"  kv="6.0" ctrlrange="-20 20"/>
+    <velocity name="right_vel" joint="right_wheel_joint" kv="6.0" ctrlrange="-20 20"/>
+  </actuator>
+
+  <!-- ═══════════════════ SENSORS ════════════════════════ -->
+  <sensor>
+    <!-- Orientation quaternion (w, x, y, z) of base -->
+    <framequat  name="imu_quat" objtype="site" objname="imu_site"/>
+    <!-- Angular velocity (rad/s) -->
+    <gyro       name="imu_gyro" site="imu_site" noise="0.004"/>
+    <!-- Linear acceleration (m/s²) -->
+    <accelerometer name="imu_acc" site="imu_site" noise="0.008"/>
+    <!-- World-frame velocity of base site -->
+    <framelinvel name="base_linvel" objtype="site" objname="imu_site"/>
+    <frameangvel name="base_angvel" objtype="site" objname="imu_site"/>
+  </sensor>
+
+</mujoco>
