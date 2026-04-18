@@ -23,27 +23,27 @@ from .costmap import Costmap
 @dataclass
 class DWAConfig:
     # Robot kinematics
-    max_v:     float = 0.8    # m/s
+    max_v:     float = 0.6    # m/s  (reduced for tighter control)
     min_v:     float = 0.0    # m/s  (no reverse in forward navigation)
-    max_w:     float = 2.2    # rad/s
-    max_acc_v: float = 0.8    # m/s²
-    max_acc_w: float = 2.5    # rad/s²
+    max_w:     float = 2.0    # rad/s
+    max_acc_v: float = 1.0    # m/s²
+    max_acc_w: float = 3.0    # rad/s²
 
-    # Sampling
-    v_samples: int   = 12
-    w_samples: int   = 24
+    # Sampling (more samples = better commands)
+    v_samples: int   = 16
+    w_samples: int   = 32
 
     # Simulation
-    sim_time:  float = 1.8    # seconds
-    sim_steps: int   = 15     # trajectory steps
+    sim_time:  float = 1.5    # seconds
+    sim_steps: int   = 18     # trajectory steps
 
-    # Scoring weights
-    w_heading:   float = 1.8
-    w_clearance: float = 1.5
-    w_velocity:  float = 0.5
+    # Scoring weights — heading is most critical for waypoint following
+    w_heading:   float = 2.5
+    w_clearance: float = 1.2
+    w_velocity:  float = 0.3
 
     # Safety
-    min_clearance: float = 0.22   # metres — abort if less than this
+    min_clearance: float = 0.18   # metres — abort if less than this
 
 
 def dwa_step(
@@ -106,7 +106,7 @@ def dwa_step(
 
             # ── Score ──────────────────────────────────────────────────────
             # Heading toward lookahead point
-            target_angle   = math.atan2(lookahead_y - sx, lookahead_x - sx)
+            target_angle   = math.atan2(lookahead_y - sy, lookahead_x - sx)
             heading_err    = abs(_angle_diff(target_angle, sth))
             heading_score  = (math.pi - heading_err) / math.pi
 

@@ -28,6 +28,9 @@ public:
 signals:
     void layerChanged(const QString& id);
 
+protected:
+    bool eventFilter(QObject* obj, QEvent* ev) override;
+
 private slots:
     void pickColor();
 

@@ -91,8 +91,9 @@ class SlamNode(Node):
         self._pose_pub = self.create_publisher(PoseStamped,  "/p_roboai_slam/pose", 10)
         self._tf_broad = TransformBroadcaster(self)
 
-        # Publish map at fixed rate regardless of scan rate
-        self._map_timer = self.create_timer(2.0, self._publish_map)
+        # Publish map at fixed rate as a fallback; also published after every map update
+        self._map_timer = self.create_timer(1.0, self._publish_map)
+        self._map_dirty = False
 
         self.get_logger().info(
             f"P_RoboAI_SLAM ready — {int(w/res)}×{int(h/res)} cells "
@@ -136,11 +137,15 @@ class SlamNode(Node):
         delta_x   = ox - self._prev_odom_x
         delta_y   = oy - self._prev_odom_y
         delta_th  = ot - self._prev_odom_theta
-        # Normalise
+        # Normalise angle delta
         delta_th  = (delta_th + math.pi) % (2 * math.pi) - math.pi
 
-        # Apply delta in map frame (rotate by current map heading)
-        c, s = math.cos(self._map_theta), math.sin(self._map_theta)
+        # Apply odom delta to map pose.
+        # (delta_x, delta_y) are in the odom world-fixed frame.
+        # Rotate to map frame by the current map-odom heading offset only,
+        # NOT by the full map heading (which would incorrectly double-rotate).
+        theta_offset = self._map_theta - self._prev_odom_theta
+        c, s = math.cos(theta_offset), math.sin(theta_offset)
         self._map_x     += c * delta_x - s * delta_y
         self._map_y     += s * delta_x + c * delta_y
         self._map_theta  = (self._map_theta + delta_th + math.pi) % (2 * math.pi) - math.pi
@@ -182,6 +187,8 @@ class SlamNode(Node):
             self._last_insert_x     = self._map_x
             self._last_insert_y     = self._map_y
             self._last_insert_theta = self._map_theta
+            # Publish the updated map immediately so Nav2 always has fresh data
+            self._publish_map()
 
         # ── Publish TF map → odom ─────────────────────────────────────────────
         self._broadcast_map_odom_tf(msg.header.stamp)

@@ -55,6 +55,9 @@ private:
     // ── ROS ────────────────────────────────────────────────────────────────
     rclcpp::Node::SharedPtr _node;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _goal_pub;
+    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr       _odom_sub;
+    rclcpp::Subscription<std_msgs::msg::String>::SharedPtr         _status_sub;
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr         _imu_sub;
 };
 
 } // namespace p_roboai_viz

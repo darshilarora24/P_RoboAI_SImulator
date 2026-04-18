@@ -29,11 +29,11 @@ from .global_planner import plan as global_plan
 from .local_planner  import DWAConfig, dwa_step, _angle_diff
 
 
-GOAL_TOL      = 0.20    # m — goal reached tolerance
-LOOKAHEAD     = 1.0     # m — pure-pursuit look-ahead on global path
-REPLAN_DIST   = 0.30    # m — replan if goal moves farther than this
-STUCK_TIME    = 6.0     # s — seconds without progress → recovery
-STUCK_DIST    = 0.05    # m — "no progress" if moved less than this
+GOAL_TOL      = 0.25    # m — goal reached tolerance
+LOOKAHEAD     = 0.70    # m — pure-pursuit look-ahead (shorter = tighter tracking)
+REPLAN_DIST   = 0.25    # m — replan if goal moves farther than this
+STUCK_TIME    = 4.0     # s — seconds without progress → recovery
+STUCK_DIST    = 0.04    # m — "no progress" if moved less than this
 CTRL_HZ       = 20.0    # Hz — control loop rate
 
 
@@ -172,17 +172,20 @@ class NavNode(Node):
             return
 
         # ── Prune passed waypoints ─────────────────────────────────────────────
+        # Remove waypoints the robot has already passed (closer than 30% of lookahead)
         while len(self._path) > 1:
             wx, wy = self._path[0]
-            if math.hypot(wx - self._robot_x, wy - self._robot_y) < LOOKAHEAD * 0.35:
+            if math.hypot(wx - self._robot_x, wy - self._robot_y) < LOOKAHEAD * 0.30:
                 self._path.pop(0)
             else:
                 break
 
         # ── Find lookahead point ───────────────────────────────────────────────
+        # Default to last waypoint (goal); prefer the first waypoint >= LOOKAHEAD away
         lx, ly = self._path[-1]
         for wx, wy in self._path:
-            if math.hypot(wx - self._robot_x, wy - self._robot_y) >= LOOKAHEAD:
+            d = math.hypot(wx - self._robot_x, wy - self._robot_y)
+            if d >= LOOKAHEAD * 0.5:   # use 50% of lookahead to avoid ignoring close waypoints
                 lx, ly = wx, wy
                 break
 

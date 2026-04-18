@@ -27,8 +27,15 @@ from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import TransformStamped, Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
-from sensor_msgs.msg import Imu, JointState, LaserScan
+from sensor_msgs.msg import Image, Imu, JointState, LaserScan
 from tf2_ros import TransformBroadcaster
+
+# ── Camera parameters ─────────────────────────────────────────────────────────
+CAMERA_HZ     = 10.0          # image publish rate
+CAMERA_W      = 640
+CAMERA_H      = 480
+CAMERA_DIST   = 2.5           # distance above robot (overhead view)
+CAMERA_EL     = -60.0         # elevation (degrees)
 
 # ── Lidar parameters ─────────────────────────────────────────────────────────
 LIDAR_RAYS   = 360
@@ -130,17 +137,74 @@ class AMRMuJoCoNode(Node):
         # ── ROS2 interfaces ───────────────────────────────────────────────────
         self._cmd_sub   = self.create_subscription(
             Twist, "/amr/cmd_vel", self._cmd_cb, 10)
-        self._odom_pub  = self.create_publisher(Odometry,   "/amr/odom",      10)
-        self._scan_pub  = self.create_publisher(LaserScan,  "/amr/scan",      10)
-        self._imu_pub   = self.create_publisher(Imu,        "/amr/imu",       10)
-        self._js_pub    = self.create_publisher(JointState, "/joint_states",  10)
+        self._odom_pub  = self.create_publisher(Odometry,   "/amr/odom",          10)
+        self._scan_pub  = self.create_publisher(LaserScan,  "/amr/scan",          10)
+        self._imu_pub   = self.create_publisher(Imu,        "/amr/imu",           10)
+        self._js_pub    = self.create_publisher(JointState, "/joint_states",      10)
+        self._cam_pub   = self.create_publisher(Image,      "/amr/camera/image",  10)
         self._tf_broad  = TransformBroadcaster(self)
+
+        # ── Offscreen camera renderer ──────────────────────────────────────────
+        self._renderer: mujoco.Renderer | None = None
+        self._cam_obj  = mujoco.MjvCamera()
+        self._cam_opt  = mujoco.MjvOption()
+        self._cam_scn  = mujoco.MjvScene(self._model, maxgeom=2000)
+        mujoco.mjv_defaultCamera(self._cam_obj)
+        mujoco.mjv_defaultOption(self._cam_opt)
+        self._cam_obj.type      = mujoco.mjtCamera.mjCAMERA_FREE
+        self._cam_obj.distance  = CAMERA_DIST
+        self._cam_obj.azimuth   = 90.0
+        self._cam_obj.elevation = CAMERA_EL
+        self._cam_obj.lookat[:] = [sx, sy, 0.0]
+        self._init_camera_renderer()
+        self._cam_timer = self.create_timer(1.0 / CAMERA_HZ, self._publish_camera)
 
         self._timer = self.create_timer(self._sim_dt, self._step)
         self.get_logger().info(
             f"AMR MuJoCo sim ready — start ({sx:.2f}, {sy:.2f}, "
             f"{math.degrees(stheta):.1f}°)  "
             f"mj_dt={self._mj_dt*1e3:.1f} ms  steps/tick={self._steps_per_tick}")
+
+    # ── Camera helpers ────────────────────────────────────────────────────────
+
+    def _init_camera_renderer(self) -> None:
+        os.environ.setdefault("MUJOCO_GL", "egl")
+        try:
+            self._renderer = mujoco.Renderer(
+                self._model, height=CAMERA_H, width=CAMERA_W)
+        except Exception as exc:
+            self.get_logger().warn(f"Camera renderer unavailable: {exc}")
+            self._renderer = None
+
+    def _publish_camera(self) -> None:
+        if self._renderer is None:
+            return
+        try:
+            # Track the robot with the camera lookat
+            root_id  = mujoco.mj_name2id(self._model, mujoco.mjtObj.mjOBJ_JOINT, "root")
+            qadr     = self._model.jnt_qposadr[root_id]
+            rx, ry   = float(self._data.qpos[qadr]), float(self._data.qpos[qadr + 1])
+            self._cam_obj.lookat[0] = rx
+            self._cam_obj.lookat[1] = ry
+
+            mujoco.mjv_updateScene(
+                self._model, self._data, self._cam_opt, None,
+                self._cam_obj, mujoco.mjtCatBit.mjCAT_ALL, self._cam_scn)
+            self._renderer.update_scene(self._data, self._cam_obj, self._cam_opt)
+            pixels = self._renderer.render()              # (H, W, 3) RGB uint8
+            pixels = np.ascontiguousarray(np.flipud(pixels))
+
+            msg                  = Image()
+            msg.header.stamp     = self.get_clock().now().to_msg()
+            msg.header.frame_id  = "amr_camera"
+            msg.height           = CAMERA_H
+            msg.width            = CAMERA_W
+            msg.encoding         = "rgb8"
+            msg.step             = CAMERA_W * 3
+            msg.data             = pixels.tobytes()
+            self._cam_pub.publish(msg)
+        except Exception as exc:
+            self.get_logger().warn(f"Camera render error: {exc}", throttle_duration_sec=5.0)
 
     # ── Command callback ──────────────────────────────────────────────────────
 
