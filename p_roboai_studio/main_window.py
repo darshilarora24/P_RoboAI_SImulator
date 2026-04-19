@@ -33,6 +33,7 @@ from arm_panel       import ArmPanel
 from amr_panel       import AMRPanel
 from rl_panel        import RLPanel
 from yolo_panel      import YOLOPanel
+from gemini_panel    import GeminiPanel
 import urdf_loader
 from urdf_loader import RobotKind
 
@@ -55,11 +56,13 @@ class MainWindow(QMainWindow):
         self._arm_panel:  ArmPanel        | None = None
         self._amr_panel:  AMRPanel        | None = None
         self._ctrl_dock:  QDockWidget     | None = None
-        self._rl_dock:    QDockWidget     | None = None
-        self._yolo_dock:  QDockWidget     | None = None
-        self._rl_panel:   RLPanel         | None = None
-        self._yolo_panel: YOLOPanel       | None = None
-        self._mjcf_xml:   str | None             = None
+        self._rl_dock:      QDockWidget     | None = None
+        self._yolo_dock:    QDockWidget     | None = None
+        self._gemini_dock:  QDockWidget     | None = None
+        self._rl_panel:     RLPanel         | None = None
+        self._yolo_panel:   YOLOPanel       | None = None
+        self._gemini_panel: GeminiPanel     | None = None
+        self._mjcf_xml:     str | None             = None
 
         # Physics simulation timer (200 Hz)
         self._sim_timer = QTimer(self)
@@ -72,6 +75,7 @@ class MainWindow(QMainWindow):
         self._build_statusbar()
         self._build_rl_dock()
         self._build_yolo_dock()
+        self._build_gemini_dock()
 
     # ── UI construction ───────────────────────────────────────────────────────
 
@@ -154,6 +158,12 @@ class MainWindow(QMainWindow):
             lambda: self._yolo_dock and self._yolo_dock.setVisible(
                 not self._yolo_dock.isVisible()))
         vm.addAction(act_yolo)
+
+        act_gemini = QAction("Gemini Robotics Panel", self)
+        act_gemini.triggered.connect(
+            lambda: self._gemini_dock and self._gemini_dock.setVisible(
+                not self._gemini_dock.isVisible()))
+        vm.addAction(act_gemini)
 
         # Help
         hm = mb.addMenu("&Help")
@@ -281,6 +291,25 @@ class MainWindow(QMainWindow):
         dock.setFloating(True)
         dock.resize(380, 560)
         self._yolo_dock = dock
+
+    def _build_gemini_dock(self) -> None:
+        self._gemini_panel = GeminiPanel(
+            get_mj_model = lambda: self._model,
+            get_frame    = self._yolo_frame_getter,
+        )
+        self._gemini_panel.setMinimumWidth(300)
+        self._gemini_panel.setMaximumWidth(460)
+
+        dock = QDockWidget("Gemini Robotics", self)
+        dock.setObjectName("gemini_dock")
+        dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                         QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+                         QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        dock.setWidget(self._gemini_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        dock.setFloating(True)
+        dock.resize(460, 620)
+        self._gemini_dock = dock
 
     # ── Getters used by sub-panels ────────────────────────────────────────────
 
