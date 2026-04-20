@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package p_roboai;
+
+// ── messages ─────────────────────────────────────────────────────────────────
+
+message JointState {
+  repeated string name     = 1;
+  repeated double position = 2;
+  repeated double velocity = 3;
+  repeated double effort   = 4;
+  double timestamp         = 5;
+}
+
+message Odometry {
+  double x       = 1;
+  double y       = 2;
+  double heading = 3;
+  double vx      = 4;
+  double wz      = 5;
+  double timestamp = 6;
+}
+
+message CmdVel {
+  double linear  = 1;
+  double angular = 2;
+}
+
+message ArmCommand {
+  repeated double positions  = 1;
+  repeated double velocities = 2;
+  string mode                = 3;   // "position", "velocity", "torque"
+}
+
+message Detection {
+  string label      = 1;
+  double confidence = 2;
+  int32  x1         = 3;
+  int32  y1         = 4;
+  int32  x2         = 5;
+  int32  y2         = 6;
+}
+
+message DetectionList {
+  repeated Detection detections = 1;
+  int32  count                  = 2;
+  double timestamp              = 3;
+}
+
+message RobotStatus {
+  string robot_id       = 1;
+  string mode           = 2;   // "idle", "navigating", "arm_moving", "training"
+  double battery_pct    = 3;
+  bool   estop_active   = 4;
+  string rl_status      = 5;
+  string gemini_status  = 6;
+  double timestamp      = 7;
+}
+
+message LLMQuery {
+  string query     = 1;
+  string robot_id  = 2;
+}
+
+message LLMResponse {
+  string analysis  = 1;
+  string command   = 2;   // JSON string
+  double timestamp = 3;
+}
+
+message Ack {
+  bool   success = 1;
+  string message = 2;
+}
+
+message Empty {}
+
+message StreamRequest {
+  string robot_id   = 1;
+  double rate_hz    = 2;
+}
+
+// ── service ───────────────────────────────────────────────────────────────────
+
+service RobotService {
+
+  // Unary: one-shot commands
+  rpc SendCmdVel      (CmdVel)     returns (Ack);
+  rpc SendArmCommand  (ArmCommand) returns (Ack);
+  rpc GetStatus       (Empty)      returns (RobotStatus);
+  rpc QueryLLM        (LLMQuery)   returns (LLMResponse);
+  rpc EStop           (Empty)      returns (Ack);
+
+  // Server-streaming: continuous telemetry
+  rpc StreamOdometry     (StreamRequest) returns (stream Odometry);
+  rpc StreamJointStates  (StreamRequest) returns (stream JointState);
+  rpc StreamDetections   (StreamRequest) returns (stream DetectionList);
+
+  // Bidirectional streaming: real-time control loop
+  rpc TeleOpStream (stream CmdVel) returns (stream Odometry);
+}

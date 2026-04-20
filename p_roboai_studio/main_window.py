@@ -34,6 +34,7 @@ from amr_panel       import AMRPanel
 from rl_panel        import RLPanel
 from yolo_panel      import YOLOPanel
 from gemini_panel    import GeminiPanel
+from protocol_panel  import ProtocolPanel
 import urdf_loader
 from urdf_loader import RobotKind
 
@@ -58,11 +59,13 @@ class MainWindow(QMainWindow):
         self._ctrl_dock:  QDockWidget     | None = None
         self._rl_dock:      QDockWidget     | None = None
         self._yolo_dock:    QDockWidget     | None = None
-        self._gemini_dock:  QDockWidget     | None = None
-        self._rl_panel:     RLPanel         | None = None
-        self._yolo_panel:   YOLOPanel       | None = None
-        self._gemini_panel: GeminiPanel     | None = None
-        self._mjcf_xml:     str | None             = None
+        self._gemini_dock:   QDockWidget     | None = None
+        self._protocol_dock: QDockWidget     | None = None
+        self._rl_panel:      RLPanel         | None = None
+        self._yolo_panel:    YOLOPanel       | None = None
+        self._gemini_panel:  GeminiPanel     | None = None
+        self._protocol_panel: ProtocolPanel  | None = None
+        self._mjcf_xml:      str | None             = None
 
         # Physics simulation timer (200 Hz)
         self._sim_timer = QTimer(self)
@@ -76,6 +79,7 @@ class MainWindow(QMainWindow):
         self._build_rl_dock()
         self._build_yolo_dock()
         self._build_gemini_dock()
+        self._build_protocol_dock()
 
     # ── UI construction ───────────────────────────────────────────────────────
 
@@ -164,6 +168,12 @@ class MainWindow(QMainWindow):
             lambda: self._gemini_dock and self._gemini_dock.setVisible(
                 not self._gemini_dock.isVisible()))
         vm.addAction(act_gemini)
+
+        act_proto = QAction("Protocol Bridges Panel", self)
+        act_proto.triggered.connect(
+            lambda: self._protocol_dock and self._protocol_dock.setVisible(
+                not self._protocol_dock.isVisible()))
+        vm.addAction(act_proto)
 
         # Help
         hm = mb.addMenu("&Help")
@@ -291,6 +301,22 @@ class MainWindow(QMainWindow):
         dock.setFloating(True)
         dock.resize(380, 560)
         self._yolo_dock = dock
+
+    def _build_protocol_dock(self) -> None:
+        self._protocol_panel = ProtocolPanel()
+        self._protocol_panel.setMinimumWidth(340)
+        self._protocol_panel.setMaximumWidth(500)
+
+        dock = QDockWidget("Protocol Bridges", self)
+        dock.setObjectName("protocol_dock")
+        dock.setFeatures(QDockWidget.DockWidgetFeature.DockWidgetMovable |
+                         QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+                         QDockWidget.DockWidgetFeature.DockWidgetClosable)
+        dock.setWidget(self._protocol_panel)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, dock)
+        dock.setFloating(True)
+        dock.resize(500, 620)
+        self._protocol_dock = dock
 
     def _build_gemini_dock(self) -> None:
         self._gemini_panel = GeminiPanel(
